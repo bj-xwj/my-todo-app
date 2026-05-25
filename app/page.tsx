@@ -10,12 +10,16 @@ interface Todo {
   created_at: string
 }
 
+type FilterType = 'all' | 'completed' | 'active'
+
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [newTask, setNewTask] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [filter, setFilter] = useState<FilterType>('all')
+  const [showClearCompleted, setShowClearCompleted] = useState(false)
 
   // 获取所有 todos
   const fetchTodos = async () => {
@@ -41,6 +45,18 @@ export default function Home() {
   useEffect(() => {
     fetchTodos()
   }, [])
+
+  // 更新显示清理按钮的状态
+  useEffect(() => {
+    setShowClearCompleted(todos.some(t => t.completed))
+  }, [todos])
+
+  // 根据过滤条件获取任务
+  const filteredTodos = todos.filter(todo => {
+    if (filter === 'completed') return todo.completed
+    if (filter === 'active') return !todo.completed
+    return true
+  })
 
   // 添加新任务
   const addTodo = async (e: React.FormEvent) => {
@@ -84,6 +100,14 @@ export default function Home() {
     }
   }
 
+  // 切换任务状态（键盘支持）
+  const handleKeyDown = (e: React.KeyboardEvent, id: number, completed: boolean) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault()
+      toggleTodo(id, completed)
+    }
+  }
+
   // 删除任务
   const deleteTodo = async (id: number) => {
     try {
@@ -100,6 +124,49 @@ export default function Home() {
     } catch (err) {
       setError('Failed to delete todo')
     }
+  }
+
+  // 全选/取消全选
+  const toggleAll = async () => {
+    const allCompleted = todos.every(t => t.completed)
+    try {
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ completed: !allCompleted })
+
+      if (updateError) {
+        setError(updateError.message)
+      } else {
+        await fetchTodos()
+      }
+    } catch (err) {
+      setError('Failed to toggle all todos')
+    }
+  }
+
+  // 清除已完成的任务
+  const clearCompleted = async () => {
+    try {
+      const { error: deleteError } = await supabase
+        .from('todos')
+        .delete()
+        .eq('completed', true)
+
+      if (deleteError) {
+        setError(deleteError.message)
+      } else {
+        await fetchTodos()
+      }
+    } catch (err) {
+      setError('Failed to clear completed todos')
+    }
+  }
+
+  // 统计数据
+  const stats = {
+    total: todos.length,
+    completed: todos.filter(t => t.completed).length,
+    active: todos.filter(t => !t.completed).length
   }
 
   return (
@@ -154,58 +221,137 @@ export default function Home() {
               <p className="text-sm text-gray-400 mt-1">添加你的第一个任务吧！</p>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
-              {todos.map((todo) => (
-                <li
-                  key={todo.id}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  {/* 复选框 */}
+            <>
+              {/* 过滤器和批量操作 */}
+              <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  {/* 全选 */}
                   <button
-                    onClick={() => toggleTodo(todo.id, todo.completed)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-                      todo.completed
+                    onClick={toggleAll}
+                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"
+                  >
+                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                      todos.every(t => t.completed) && todos.length > 0
                         ? 'bg-blue-500 border-blue-500 text-white'
                         : 'border-gray-300 hover:border-blue-400'
-                    }`}
-                  >
-                    {todo.completed && (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
+                    }`}>
+                      {todos.every(t => t.completed) && todos.length > 0 && (
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    {todos.every(t => t.completed) && todos.length > 0 ? '取消全选' : '全选'}
+                  </button>
+
+                  {/* 过滤器 */}
+                  <div className="flex gap-2">
+                    {(['all', 'active', 'completed'] as FilterType[]).map((filterType) => (
+                      <button
+                        key={filterType}
+                        onClick={() => setFilter(filterType)}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          filter === filterType
+                            ? 'bg-blue-500 text-white'
+                            : 'text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {filterType === 'all' ? '全部' : filterType === 'active' ? '未完成' : '已完成'}
+                        <span className="ml-1 opacity-75">
+                          {filterType === 'all' ? stats.total :
+                           filterType === 'active' ? stats.active : stats.completed}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 任务列表 */}
+              <ul className="divide-y divide-gray-100">
+                {filteredTodos.length === 0 ? (
+                  <li className="text-center py-8">
+                    <p className="text-gray-500">
+                      {filter === 'completed' ? '暂无已完成的任务' :
+                       filter === 'active' ? '暂无未完成的任务' : '暂无任务'}
+                    </p>
+                  </li>
+                ) : (
+                  filteredTodos.map((todo) => (
+                    <li
+                      key={todo.id}
+                      className={`flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition-colors ${
+                        todo.completed ? 'opacity-75' : ''
+                      }`}
+                    >
+                      {/* 复选框 - 支持键盘 */}
+                      <button
+                        onClick={() => toggleTodo(todo.id, todo.completed)}
+                        onKeyDown={(e) => handleKeyDown(e, todo.id, todo.completed)}
+                        aria-label={todo.completed ? '标记为未完成' : '标记为已完成'}
+                        tabIndex={0}
+                        className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                          todo.completed
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'border-gray-300 hover:border-blue-400'
+                        }`}
+                      >
+                        {todo.completed && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </button>
+
+                      {/* 任务文本 */}
+                      <span
+                        className={`flex-1 text-base ${
+                          todo.completed
+                            ? 'text-gray-400 line-through decoration-2 decoration-gray-400'
+                            : 'text-gray-800'
+                        }`}
+                      >
+                        {todo.task}
+                      </span>
+
+                      {/* 删除按钮 */}
+                      <button
+                        onClick={() => deleteTodo(todo.id)}
+                        className="flex-shrink-0 px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label="删除任务"
+                      >
+                        删除
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+
+              {/* 底部操作栏 */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>
+                    {stats.completed > 0 ? (
+                      <span>
+                        已完成 <strong>{stats.completed}</strong> / <strong>{stats.total}</strong> 个任务
+                      </span>
+                    ) : (
+                      <span>共 <strong>{stats.total}</strong> 个任务</span>
                     )}
-                  </button>
-
-                  {/* 任务文本 */}
-                  <span
-                    className={`flex-1 text-base ${
-                      todo.completed
-                        ? 'text-gray-400 line-through decoration-2 decoration-gray-400'
-                        : 'text-gray-800'
-                    }`}
-                  >
-                    {todo.task}
                   </span>
-
-                  {/* 删除按钮 */}
-                  <button
-                    onClick={() => deleteTodo(todo.id)}
-                    className="flex-shrink-0 px-3 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    删除
-                  </button>
-                </li>
-              ))}
-            </ul>
+                  {showClearCompleted && (
+                    <button
+                      onClick={clearCompleted}
+                      className="text-red-600 hover:text-red-700 hover:underline"
+                    >
+                      清除已完成
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </div>
-
-        {/* 统计 */}
-        {!loading && todos.length > 0 && (
-          <div className="mt-4 text-center text-sm text-gray-500">
-            共 {todos.length} 个任务，已完成 {todos.filter((t) => t.completed).length} 个
-          </div>
-        )}
 
         {/* 技术栈信息 */}
         <div className="mt-12 grid grid-cols-3 gap-4 text-center text-sm">
