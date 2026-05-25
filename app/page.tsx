@@ -163,23 +163,25 @@ export default function Home() {
                   {/* 复选框 */}
                   <button
                     onClick={() => toggleTodo(todo.id, todo.completed)}
-                    className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
                       todo.completed
-                        ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300 hover:border-green-400'
+                        ? 'bg-blue-500 border-blue-500 text-white'
+                        : 'border-gray-300 hover:border-blue-400'
                     }`}
                   >
                     {todo.completed && (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </button>
 
                   {/* 任务文本 */}
                   <span
-                    className={`flex-1 ${
-                      todo.completed ? 'text-gray-400 line-through' : 'text-gray-800'
+                    className={`flex-1 text-base ${
+                      todo.completed
+                        ? 'text-gray-400 line-through decoration-2 decoration-gray-400'
+                        : 'text-gray-800'
                     }`}
                   >
                     {todo.task}
