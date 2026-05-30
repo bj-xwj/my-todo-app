@@ -128,11 +128,13 @@ export default function Home() {
 
   // 全选/取消全选
   const toggleAll = async () => {
+    if (todos.length === 0) return
     const allCompleted = todos.every(t => t.completed)
     try {
       const { error: updateError } = await supabase
         .from('todos')
         .update({ completed: !allCompleted })
+        .in('id', todos.map(t => t.id))
 
       if (updateError) {
         setError(updateError.message)
