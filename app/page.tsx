@@ -112,12 +112,53 @@ export default function Home() {
     }
   }
 
+  // 全选/取消全选
+  const toggleAll = async () => {
+    if (todos.length === 0) return
+    const allCompleted = todos.every(t => t.completed)
+    try {
+      const { error: updateError } = await supabase
+        .from('todos')
+        .update({ completed: !allCompleted })
+        .in('id', todos.map(t => t.id))
+
+      if (updateError) {
+        setError(updateError.message)
+      } else {
+        await fetchTodos()
+      }
+    } catch (err) {
+      setError('Failed to toggle all todos')
+    }
+  }
+
+  // 清除已完成的任务
+  const clearCompleted = async () => {
+    try {
+      const { error: deleteError } = await supabase
+        .from('todos')
+        .delete()
+        .eq('completed', true)
+
+      if (deleteError) {
+        setError(deleteError.message)
+      } else {
+        await fetchTodos()
+      }
+    } catch (err) {
+      setError('Failed to clear completed todos')
+    }
+  }
+
   // 统计数据
   const stats = {
     total: todos.length,
     completed: todos.filter(t => t.completed).length,
     active: todos.filter(t => !t.completed).length
   }
+
+  // 是否有已完成的任务
+  const hasCompleted = todos.some(t => t.completed)
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -157,21 +198,44 @@ export default function Home() {
           </div>
         )}
 
-        {/* 过滤器 */}
-        <div className="px-4 pb-3 flex gap-2">
-          {(['all', 'active', 'completed'] as FilterType[]).map((filterType) => (
-            <button
-              key={filterType}
-              onClick={() => setFilter(filterType)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                filter === filterType
-                  ? 'bg-[#1976d2] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              {filterType === 'all' ? '全部' : filterType === 'active' ? '未完成' : '已完成'}
-            </button>
-          ))}
+        {/* 工具栏：全选 + 过滤器 */}
+        <div className="px-4 pb-3 flex items-center justify-between">
+          {/* 全选按钮 */}
+          <button
+            onClick={toggleAll}
+            disabled={todos.length === 0}
+            className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#1976d2] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+              todos.length > 0 && todos.every(t => t.completed)
+                ? 'bg-[#1976d2] border-[#1976d2]'
+                : 'border-gray-300'
+            }`}>
+              {todos.length > 0 && todos.every(t => t.completed) && (
+                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </div>
+            全选
+          </button>
+
+          {/* 过滤器 */}
+          <div className="flex gap-2">
+            {(['all', 'active', 'completed'] as FilterType[]).map((filterType) => (
+              <button
+                key={filterType}
+                onClick={() => setFilter(filterType)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  filter === filterType
+                    ? 'bg-[#1976d2] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {filterType === 'all' ? '全部' : filterType === 'active' ? '未完成' : '已完成'}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 任务列表 */}
@@ -236,9 +300,19 @@ export default function Home() {
           )}
         </div>
 
-        {/* 底部统计 */}
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 text-center text-sm text-gray-500">
-          共 {stats.total} 项任务 · 已完成 {stats.completed} 项
+        {/* 底部统计 + 清除已完成 */}
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-sm">
+          <span className="text-gray-500">
+            共 {stats.total} 项任务 · 已完成 {stats.completed} 项
+          </span>
+          {hasCompleted && (
+            <button
+              onClick={clearCompleted}
+              className="text-red-500 hover:text-red-600 hover:underline transition-colors"
+            >
+              清除已完成
+            </button>
+          )}
         </div>
       </div>
     </div>
