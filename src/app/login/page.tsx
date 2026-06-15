@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient, waitForSession } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, Eye, EyeOff } from 'lucide-react'
@@ -33,10 +33,16 @@ export default function LoginPage() {
 
     // 登录成功，等待 session 同步后跳转
     if (data.user) {
-      setTimeout(() => {
+      // 等待 session 在浏览器中同步（最多 2 秒）
+      const session = await waitForSession(supabase, 2000)
+      
+      if (session) {
         router.push('/')
         router.refresh()
-      }, 100)
+      } else {
+        setError('会话同步失败，请重试')
+        setLoading(false)
+      }
     }
   }
 
