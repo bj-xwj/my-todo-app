@@ -9,7 +9,6 @@ export default async function Home() {
     redirect('/login')
   }
 
-  // 获取用户角色
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')

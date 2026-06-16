@@ -1,107 +1,82 @@
-'use client'
+import { createClient } from '@/lib/supabase/server'
+import { Users, Shield, UserCheck } from 'lucide-react'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { getRoleLabel } from '@/lib/utils'
+export default async function UsersPage() {
+  const supabase = await createClient()
 
-export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const supabase = createClient()
-
-  useEffect(() => {
-    fetchUsers()
-  }, [])
-
-  const fetchUsers = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setUsers(data || [])
-    setLoading(false)
-  }
-
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId)
-    fetchUsers()
-  }
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">用户管理</h1>
-        <p className="text-gray-500 mt-1">管理系统用户角色与权限</p>
+        <p className="text-gray-500 mt-1">管理系统所有用户及权限</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>权限说明：</strong>
-            普通员工只能查看自己的考勤数据和提交申请；
-            人事可以审批申请、管理员工信息和考勤数据；
-            超级管理员拥有所有权限，包括系统设置。
-          </p>
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-5 h-5 text-primary-600" />
+            <h2 className="text-lg font-semibold text-gray-900">用户列表 ({users?.length || 0})</h2>
+          </div>
         </div>
-
-        {loading ? (
-          <p className="text-gray-400 text-sm text-center py-8">加载中...</p>
-        ) : users.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">工号</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">姓名</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">邮箱</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">部门</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">当前角色</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">修改角色</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">注册时间</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">部门</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">角色</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">注册时间</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {!users || users.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p>暂无用户</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 px-3 font-mono text-gray-600">{user.employee_no}</td>
-                    <td className="py-3 px-3 font-medium text-gray-900">{user.name}</td>
-                    <td className="py-3 px-3 text-gray-600">{user.email || '-'}</td>
-                    <td className="py-3 px-3 text-gray-600">{user.department || '-'}</td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'admin' ? 'bg-red-50 text-red-600' :
-                        user.role === 'hr' ? 'bg-blue-50 text-blue-600' :
-                        'bg-gray-50 text-gray-600'
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary-700">
+                            {user.name?.charAt(0) || '?'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                          <p className="text-xs text-gray-500">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{user.department || '-'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                        user.role === 'admin' ? 'bg-purple-50 text-purple-700' :
+                        user.role === 'hr' ? 'bg-yellow-50 text-yellow-700' :
+                        'bg-green-50 text-green-700'
                       }`}>
-                        {getRoleLabel(user.role)}
+                        {user.role === 'admin' ? <Shield className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
+                        {user.role === 'admin' ? '管理员' : user.role === 'hr' ? '人事' : '员工'}
                       </span>
                     </td>
-                    <td className="py-3 px-3">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        className="px-2 py-1 border border-gray-200 rounded text-xs outline-none focus:ring-1 focus:ring-primary-500"
-                      >
-                        <option value="employee">普通员工</option>
-                        <option value="hr">人事</option>
-                        <option value="admin">超级管理员</option>
-                      </select>
-                    </td>
-                    <td className="py-3 px-3 text-gray-400 text-xs">
-                      {new Date(user.created_at).toLocaleDateString('zh-CN')}
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('zh-CN') : '-'}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-400 text-sm text-center py-8">暂无用户数据</p>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

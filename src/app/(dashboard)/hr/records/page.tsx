@@ -1,134 +1,98 @@
-'use client'
+import { createClient } from '@/lib/supabase/server'
+import { FileText } from 'lucide-react'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { getStatusLabel, getStatusColor, formatDate, getCurrentMonth } from '@/lib/utils'
+export default async function HRRecordsPage() {
+  const supabase = await createClient()
+  
+  const today = new Date().toISOString().split('T')[0]
 
-export default function HRRecordsPage() {
-  const [records, setRecords] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
-  const [selectedEmployee, setSelectedEmployee] = useState('')
-  const [loading, setLoading] = useState(false)
-  const supabase = createClient()
+  const { data: records } = await supabase
+    .from('attendance_records')
+    .select('*, profiles(name)')
+    .eq('date', today)
+    .order('check_in', { ascending: false })
 
-  useEffect(() => {
-    fetchEmployees()
-  }, [])
-
-  useEffect(() => {
-    fetchRecords()
-  }, [selectedMonth, selectedEmployee])
-
-  const fetchEmployees = async () => {
-    const { data } = await supabase.from('profiles').select('id, name, employee_no')
-    setEmployees(data || [])
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'normal': return 'bg-green-50 text-green-700'
+      case 'late': return 'bg-yellow-50 text-yellow-700'
+      case 'early_leave': return 'bg-orange-50 text-orange-700'
+      case 'absent': return 'bg-red-50 text-red-700'
+      case 'overtime': return 'bg-blue-50 text-blue-700'
+      case 'leave': return 'bg-purple-50 text-purple-700'
+      default: return 'bg-gray-50 text-gray-700'
+    }
   }
 
-  const fetchRecords = async () => {
-    setLoading(true)
-    let query = supabase
-      .from('attendance_records')
-      .select('*, profiles(name, employee_no)')
-      .gte('date', selectedMonth + '-01')
-      .lte('date', selectedMonth + '-31')
-      .order('date', { ascending: false })
-
-    if (selectedEmployee) {
-      query = query.eq('user_id', selectedEmployee)
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'normal': return '正常'
+      case 'late': return '迟到'
+      case 'early_leave': return '早退'
+      case 'absent': return '旷工'
+      case 'overtime': return '加班'
+      case 'leave': return '请假'
+      default: return status
     }
-
-    const { data } = await query
-    setRecords(data || [])
-    setLoading(false)
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">考勤记录</h1>
-        <p className="text-gray-500 mt-1">查看全部员工考勤记录</p>
+        <p className="text-gray-500 mt-1">查看今日所有员工考勤记录</p>
       </div>
 
-      {/* 筛选 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4">
-        <div>
-          <label className="text-sm text-gray-500 mr-2">月份:</label>
-          <input
-            type="month"
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-primary-500"
-          />
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">今日考勤 · {today}</h2>
         </div>
-        <div>
-          <label className="text-sm text-gray-500 mr-2">员工:</label>
-          <select
-            value={selectedEmployee}
-            onChange={(e) => setSelectedEmployee(e.target.value)}
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-1 focus:ring-primary-500"
-          >
-            <option value="">全部员工</option>
-            {employees.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.name} ({emp.employee_no})</option>
-            ))}
-          </select>
-        </div>
-        <div className="ml-auto text-sm text-gray-500">
-          共 {records.length} 条记录
-        </div>
-      </div>
-
-      {/* 记录列表 */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        {loading ? (
-          <p className="text-gray-400 text-sm text-center py-8">加载中...</p>
-        ) : records.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">员工</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">日期</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">上班打卡</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">下班打卡</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">工时</th>
-                  <th className="text-left py-3 px-3 font-medium text-gray-500">状态</th>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">员工</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">部门</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">上班时间</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">下班时间</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {!records || records.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                    <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    <p>今日暂无考勤记录</p>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-3 px-3">
-                      <span className="font-medium text-gray-900">{(record.profiles as any)?.name}</span>
+              ) : (
+                records.map((record) => (
+                  <tr key={record.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-primary-700">
+                            {record.profiles?.name?.charAt(0) || '?'}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{record.profiles?.name || '未知'}</span>
+                      </div>
                     </td>
-                    <td className="py-3 px-3 text-gray-600">{formatDate(record.date)}</td>
-                    <td className="py-3 px-3 text-gray-600">
-                      {record.clock_in 
-                        ? new Date(record.clock_in).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-                        : <span className="text-red-400">未打卡</span>}
-                    </td>
-                    <td className="py-3 px-3 text-gray-600">
-                      {record.clock_out 
-                        ? new Date(record.clock_out).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-                        : <span className="text-red-400">未打卡</span>}
-                    </td>
-                    <td className="py-3 px-3 text-gray-600">
-                      {record.work_hours ? `${record.work_hours}h` : '-'}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(record.status)}`}>
-                        {getStatusLabel(record.status)}
+                    <td className="px-6 py-4 text-sm text-gray-500">{record.profiles?.department || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{record.check_in || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{record.check_out || '-'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusStyle(record.status)}`}>
+                        {getStatusText(record.status)}
                       </span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-gray-400 text-sm text-center py-8">暂无考勤记录</p>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

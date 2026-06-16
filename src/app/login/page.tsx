@@ -33,7 +33,6 @@ export default function LoginPage() {
         return
       }
 
-      // 登录成功，cookie 已自动设置，直接跳转
       router.push('/')
       router.refresh()
     } catch (err) {

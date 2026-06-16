@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json()
+    const { email, password, name, department } = await request.json()
     const cookieStore = await cookies()
     
     const supabase = createServerClient(
@@ -24,27 +24,42 @@ export async function POST(request: Request) {
       }
     )
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          name,
+          department,
+          role: 'employee',
+        }
+      }
     })
 
     if (error) {
       return NextResponse.json(
-        { error: error.message === 'Invalid login credentials' ? '邮箱或密码错误' : error.message },
-        { status: 401 }
+        { error: error.message },
+        { status: 400 }
       )
+    }
+
+    // 创建用户资料
+    if (data.user) {
+      await supabase.from('profiles').insert({
+        id: data.user.id,
+        email,
+        name,
+        department,
+        role: 'employee',
+      })
     }
 
     return NextResponse.json({ 
       success: true, 
-      user: { 
-        id: data.user.id, 
-        email: data.user.email 
-      } 
+      message: '注册成功，请登录'
     })
   } catch (e) {
-    console.error('Login error:', e)
-    return NextResponse.json({ error: '登录失败' }, { status: 500 })
+    console.error('Register error:', e)
+    return NextResponse.json({ error: '注册失败' }, { status: 500 })
   }
 }
