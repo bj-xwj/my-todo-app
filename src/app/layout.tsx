@@ -7,6 +7,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: '员工考勤管理系统',
   description: '中小型企业员工考勤管理系统',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
