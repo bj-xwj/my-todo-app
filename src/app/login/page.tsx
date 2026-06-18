@@ -33,8 +33,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/')
-      router.refresh()
+      // 使用 window.location 强制刷新，确保 cookie 生效
+      window.location.href = '/'
     } catch (err) {
       setError('网络错误，请重试')
       setLoading(false)
