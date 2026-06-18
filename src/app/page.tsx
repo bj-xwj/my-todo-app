@@ -1,25 +1,42 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+'use client'
 
-export default async function Home() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-  if (!user) {
-    redirect('/login')
-  }
+export default function Home() {
+  const [loading, setLoading] = useState(true)
+  const supabase = createClient()
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  useEffect(() => {
+    const redirectUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
 
-  if (profile?.role === 'admin') {
-    redirect('/admin')
-  } else if (profile?.role === 'hr') {
-    redirect('/hr')
-  } else {
-    redirect('/employee')
-  }
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile?.role === 'admin') {
+        window.location.href = '/admin'
+      } else if (profile?.role === 'hr') {
+        window.location.href = '/hr'
+      } else {
+        window.location.href = '/employee'
+      }
+    }
+
+    redirectUser()
+  }, [])
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="text-gray-400">加载中...</div>
+    </div>
+  )
 }
