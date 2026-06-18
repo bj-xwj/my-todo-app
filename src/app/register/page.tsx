@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, Eye, EyeOff } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('')
@@ -14,6 +15,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,18 +23,25 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, department }),
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        setError(result.error || '注册失败')
+      if (signUpError) {
+        setError(signUpError.message || '注册失败')
         setLoading(false)
         return
+      }
+
+      if (data.user) {
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          name,
+          department,
+          role: 'employee',
+          email,
+        })
       }
 
       router.push('/login')

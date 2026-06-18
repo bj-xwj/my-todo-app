@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Clock, Eye, EyeOff } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,22 +23,17 @@ export default function LoginPage() {
     setError('')
 
     try {
-      // 强制请求最新 API 版本
-      const response = await fetch(`/api/auth/login?t=${Date.now()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       })
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        setError(result.error || '登录失败')
+      if (signInError) {
+        setError(signInError.message === 'Invalid login credentials' ? '邮箱或密码错误' : signInError.message)
         setLoading(false)
         return
       }
 
-      // 使用 window.location 强制刷新，确保 cookie 生效
       window.location.href = '/'
     } catch (err) {
       setError('网络错误，请重试')
