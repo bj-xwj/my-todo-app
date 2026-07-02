@@ -31,8 +31,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/')
-    router.refresh()
+    // 使用硬导航确保 cookie 被正确发送到服务器
+    window.location.href = '/'
   }
 
   return (

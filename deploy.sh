@@ -2,7 +2,7 @@
 # 自动部署脚本 - 构建 + 启动 + 健康检测
 set -e
 
-APP_DIR="/root/.openclaw/workspace/attendance-system"
+APP_DIR="/root/.openclaw/workspace"
 LOG_FILE="/tmp/attendance-server.log"
 PORT=${PORT:-3000}
 PAGES=("/" "/login" "/register")
